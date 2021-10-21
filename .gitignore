@@ -1,0 +1,9 @@
+# dependencies
+node_modules
+
+# dev files
+*.csv*
+tsconfig.tsbuildinfo
+
+# build
+build
