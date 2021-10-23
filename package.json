@@ -5,7 +5,7 @@
   "scripts": {
     "pm2": "NODE_ENV=production pm2 start",
     "build": "rimraf build && tsc -p tsconfig.json",
-    "dev": "NODE_ENV=development ts-node-dev --inspect --respawn src/main.ts"
+    "dev": "NODE_ENV=development tsnd --inspect src/main.ts --watch src/*"
   },
   "repository": {
     "type": "git",

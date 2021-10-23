@@ -1,36 +1,52 @@
 import path from "path";
 import { createReadStream } from "fs";
 import { createInterface } from "readline";
-import { performance } from "perf_hooks";
-import { Worker } from "worker_threads";
 import os from "os";
 
-import { IStock, StockModel } from "./stock.interface";
-import { initDBConnection } from "./db";
+// import { IStock, StockModel } from "./stock.interface";
 import { WorkerPool } from "./worker_pool";
+import { initDBConnection } from "./db";
+import { performance } from "perf_hooks";
 
-console.time("main");
+console.time(__filename);
 
 const filePath = path.join(__dirname, "../stock.csv");
 const workerPath = path.join(__dirname, "./worker.js");
 
-// initDBConnection();
+initDBConnection();
 
 // Create stream reader, skip the 1305 first bytes to skip the first line
 const inputStream = createReadStream(filePath, { start: 1305 });
 const rl = createInterface({ input: inputStream });
+
+let length = 0;
+let lines: string[] = [];
 
 const workerPool = new WorkerPool(os.cpus().length, {
   path: workerPath,
   options: { workerData: { path: "./worker.ts" } },
 });
 
-// let split: IStock[] = [];
-// let current_split_length = 0;
-// const SPLIT_LENGTH = 10;
+const WORKER_LOAD = 1000;
+
+rl.on("line", (line) => {
+  lines = lines.concat([line]);
+
+  if (lines.length === WORKER_LOAD) {
+    const start = performance.now();
+    workerPool.runTask(lines, (err, result) => {
+      const end = performance.now();
+      console.log(
+        `workerPool task took ${Math.trunc(end - start) / 1000} seconds`
+      );
+    });
+
+    lines = [];
+    length = 0;
+  }
+});
 
 // rl.on("line", (line) => {
-//   const data = line.split(",");
 //   const stockModel: IStock = {
 //     siren: data[0],
 //     nic: data[1],
@@ -103,9 +119,7 @@ const workerPool = new WorkerPool(os.cpus().length, {
 //   }
 // });
 
-// rl.on("close", () => {
-//   console.log("closed");
-//   workerPool.close();
-// });
-
-console.timeEnd("main");
+rl.on("close", () => {
+  console.timeEnd(__filename);
+  // workerPool.close();
+});

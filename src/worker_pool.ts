@@ -1,6 +1,5 @@
 import { AsyncResource } from "async_hooks";
 import { EventEmitter } from "events";
-import path from "path";
 import { Worker, WorkerOptions } from "worker_threads";
 
 const taskInfo = Symbol("kTaskInfo");
@@ -43,9 +42,13 @@ export class WorkerPool extends EventEmitter {
     }
   }
 
+  public get areAllTasksDone() {
+    return this.freeWorkers.length === this.workers.length;
+  }
+
   createWorker() {
     const worker = new Worker(
-      path.resolve(this.workerConfig.path),
+      this.workerConfig.path,
       this.workerConfig.options
     );
 
@@ -74,8 +77,8 @@ export class WorkerPool extends EventEmitter {
     this.emit(freeWorkerEvent);
   }
 
-  runTask(task: any, callback: any) {
-    // if there's no free worker right now
+  runTask(task: string[], callback: (err, result) => void) {
+    // if there's no free workers right now
     if (this.freeWorkers.length === 0) {
       this.once(freeWorkerEvent, () => this.runTask(task, callback));
       return;

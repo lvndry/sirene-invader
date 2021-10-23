@@ -1,9 +1,10 @@
 # dependencies
 node_modules
 
-# dev files
+# local files
 *.csv*
-tsconfig.tsbuildinfo
+tmp
 
 # build
 build
+tsconfig.tsbuildinfo
