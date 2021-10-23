@@ -1,68 +1,79 @@
-import { Document } from "mongoose";
+import { model, Schema, connect, connection } from "mongoose";
 import { parentPort } from "worker_threads";
+import { initDBConnection } from "./db";
 
-import { IStock, StockModel } from "./stock.interface";
+import { IStock } from "./stock.interface";
 
-parentPort?.on("message", (lines: string[]) => {
+parentPort?.on("message", async (lines: string[]) => {
+  // await initDBConnection();
+
+  const db = connection;
+
   const models: IStock[] = lines.map((line) => {
     const data = line.split(",");
     return {
-      siren: data[0],
-      nic: data[1],
-      siret: data[2],
-      statutDiffusionEtablissement: data[3],
-      dateCreationEtablissement: data[4],
-      trancheEffectifsEtablissement: data[5],
-      anneeEffectifsEtablissement: data[6],
-      activitePrincipaleRegistreMetiersEtablissement: data[7],
-      dateDernierTraitementEtablissement: data[8],
-      etablissementSiege: data[9],
-      nombrePeriodesEtablissement: data[10],
-      complementAdresseEtablissement: data[11],
-      numeroVoieEtablissement: data[12],
-      indiceRepetitionEtablissement: data[13],
-      typeVoieEtablissement: data[14],
-      libelleVoieEtablissement: data[15],
-      codePostalEtablissement: data[16],
-      libelleCommuneEtablissement: data[17],
-      libelleCommuneEtrangerEtablissement: data[18],
-      distributionSpecialeEtablissement: data[19],
-      codeCommuneEtablissement: data[20],
-      codeCedexEtablissement: data[21],
-      libelleCedexEtablissement: data[22],
-      codePaysEtrangerEtablissement: data[23],
-      libellePaysEtrangerEtablissement: data[24],
-      complementAdresse2Etablissement: data[25],
-      numeroVoie2Etablissement: data[26],
-      indiceRepetition2Etablissement: data[27],
-      typeVoie2Etablissement: data[28],
-      libelleVoie2Etablissement: data[29],
-      codePostal2Etablissement: data[30],
-      libelleCommune2Etablissement: data[31],
-      libelleCommuneEtranger2Etablissement: data[32],
-      distributionSpeciale2Etablissement: data[33],
-      codeCommune2Etablissement: data[34],
-      codeCedex2Etablissement: data[35],
-      libelleCedex2Etablissement: data[36],
-      codePaysEtranger2Etablissement: data[37],
-      libellePaysEtranger2Etablissement: data[38],
-      dateDebut: data[39],
-      etatAdministratifEtablissement: data[40],
-      enseigne1Etablissement: data[41],
-      enseigne2Etablissement: data[42],
-      enseigne3Etablissement: data[43],
-      denominationUsuelleEtablissement: data[44],
-      activitePrincipaleEtablissement: data[45],
-      nomenclatureActivitePrincipaleEtablissement: data[46],
-      caractereEmployeurEtablissement: data[47],
+      siren: data[0] || undefined,
+      nic: data[1] || undefined,
+      siret: data[2] || undefined,
+      statutDiffusionEtablissement: data[3] || undefined,
+      dateCreationEtablissement: data[4] || undefined,
+      trancheEffectifsEtablissement: data[5] || undefined,
+      anneeEffectifsEtablissement: data[6] || undefined,
+      activitePrincipaleRegistreMetiersEtablissement: data[7] || undefined,
+      dateDernierTraitementEtablissement: data[8] || undefined,
+      etablissementSiege: data[9] || undefined,
+      nombrePeriodesEtablissement: data[10] || undefined,
+      complementAdresseEtablissement: data[11] || undefined,
+      numeroVoieEtablissement: data[12] || undefined,
+      indiceRepetitionEtablissement: data[13] || undefined,
+      typeVoieEtablissement: data[14] || undefined,
+      libelleVoieEtablissement: data[15] || undefined,
+      codePostalEtablissement: data[16] || undefined,
+      libelleCommuneEtablissement: data[17] || undefined,
+      libelleCommuneEtrangerEtablissement: data[18] || undefined,
+      distributionSpecialeEtablissement: data[19] || undefined,
+      codeCommuneEtablissement: data[20] || undefined,
+      codeCedexEtablissement: data[21] || undefined,
+      libelleCedexEtablissement: data[22] || undefined,
+      codePaysEtrangerEtablissement: data[23] || undefined,
+      libellePaysEtrangerEtablissement: data[24] || undefined,
+      complementAdresse2Etablissement: data[25] || undefined,
+      numeroVoie2Etablissement: data[26] || undefined,
+      indiceRepetition2Etablissement: data[27] || undefined,
+      typeVoie2Etablissement: data[28] || undefined,
+      libelleVoie2Etablissement: data[29] || undefined,
+      codePostal2Etablissement: data[30] || undefined,
+      libelleCommune2Etablissement: data[31] || undefined,
+      libelleCommuneEtranger2Etablissement: data[32] || undefined,
+      distributionSpeciale2Etablissement: data[33] || undefined,
+      codeCommune2Etablissement: data[34] || undefined,
+      codeCedex2Etablissement: data[35] || undefined,
+      libelleCedex2Etablissement: data[36] || undefined,
+      codePaysEtranger2Etablissement: data[37] || undefined,
+      libellePaysEtranger2Etablissement: data[38] || undefined,
+      dateDebut: data[39] || undefined,
+      etatAdministratifEtablissement: data[40] || undefined,
+      enseigne1Etablissement: data[41] || undefined,
+      enseigne2Etablissement: data[42] || undefined,
+      enseigne3Etablissement: data[43] || undefined,
+      denominationUsuelleEtablissement: data[44] || undefined,
+      activitePrincipaleEtablissement: data[45] || undefined,
+      nomenclatureActivitePrincipaleEtablissement: data[46] || undefined,
+      caractereEmployeurEtablissement: data[47] || undefined,
     };
   });
 
+  try {
+    // await StockModel.insertMany(models, { lean: true });
+    // await StockModel.bulkSave(models.map((model) => new StockModel(model)));
+    // await new StockModel(models[0]).save();
+    // await StockModel.create(models[0]);
+    console.log("try/catch");
+  } catch (err) {
+    console.error(err);
+  }
+
+  db.close();
+
   parentPort?.postMessage("done");
 });
-
-// StockModel.insertMany(models, { lean: true });
-
-// StockModel.bulkSave(models)
-//   .then((res) => console.log(res))
-//   .catch((err) => console.error(`Oops something went wrong:`, err));
