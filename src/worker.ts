@@ -3,13 +3,10 @@ import { parentPort } from "worker_threads";
 
 import { IStock, StockModel } from "./stock.interface";
 
-let models: IStock[] = [];
-
 parentPort?.on("message", (lines: string[]) => {
-  for (let i = 0; i < lines.length; i++) {
-    const data = lines[i].split(",");
-
-    const stockModel: IStock = {
+  const models: IStock[] = lines.map((line) => {
+    const data = line.split(",");
+    return {
       siren: data[0],
       nic: data[1],
       siret: data[2],
@@ -59,14 +56,13 @@ parentPort?.on("message", (lines: string[]) => {
       nomenclatureActivitePrincipaleEtablissement: data[46],
       caractereEmployeurEtablissement: data[47],
     };
-    models = models.concat(stockModel);
-  }
-
-  // StockModel.insertMany(models, { lean: true });
-
-  // StockModel.bulkSave(models)
-  //   .then((res) => console.log(res))
-  //   .catch((err) => console.error(`Oops something went wrong:`, err));
+  });
 
   parentPort?.postMessage("done");
 });
+
+// StockModel.insertMany(models, { lean: true });
+
+// StockModel.bulkSave(models)
+//   .then((res) => console.log(res))
+//   .catch((err) => console.error(`Oops something went wrong:`, err));

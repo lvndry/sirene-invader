@@ -36,13 +36,20 @@ rl.on("line", (line) => {
     const start = performance.now();
     workerPool.runTask(lines, (err, result) => {
       const end = performance.now();
+
       console.log(
         `workerPool task took ${Math.trunc(end - start) / 1000} seconds`
       );
+
+      if (err) {
+        console.error(err);
+      }
     });
 
     lines = [];
     length = 0;
+
+    rl.close();
   }
 });
 
