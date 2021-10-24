@@ -58,7 +58,7 @@ export class WorkerPool extends EventEmitter {
     worker.on("message", (data) => {
       worker[taskInfo].done(null, data);
       worker[taskInfo] = null;
-      this.freeWorkers = [...this.freeWorkers, worker];
+      this.freeWorkers = this.freeWorkers.concat([worker]);
 
       this.emit(freeWorkerEvent);
     });
@@ -75,8 +75,8 @@ export class WorkerPool extends EventEmitter {
       this.createWorker();
     });
 
-    this.workers = [...this.workers, worker];
-    this.freeWorkers = [...this.freeWorkers, worker];
+    this.workers = this.workers.concat([worker]);
+    this.freeWorkers = this.freeWorkers.concat([worker]);
     this.emit(freeWorkerEvent);
   }
 

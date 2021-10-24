@@ -5,7 +5,7 @@ import { IStock } from "./stock.interface";
 parentPort?.on("message", async (lines: string[]) => {
   const models: IStock[] = lines.map((line) => {
     const data = line.split(",");
-    return {
+    const stock = {
       siren: data[0] || undefined,
       nic: data[1] || undefined,
       siret: data[2] || undefined,
@@ -55,6 +55,10 @@ parentPort?.on("message", async (lines: string[]) => {
       nomenclatureActivitePrincipaleEtablissement: data[46] || undefined,
       caractereEmployeurEtablissement: data[47] || undefined,
     };
+
+    return Object.fromEntries(
+      Object.entries(stock).filter(([, value]) => value !== undefined)
+    );
   });
 
   parentPort?.postMessage(models);

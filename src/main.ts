@@ -30,12 +30,13 @@ async function main() {
         rl.resume();
       } else if (key.name === "c") {
         console.log("Exiting program...");
+        rl.close();
         process.exit();
       }
     }
   });
 
-  await initDBConnection();
+  const db = await initDBConnection();
 
   const workerPool = new WorkerPool(os.cpus().length, {
     path: workerPath,
@@ -46,12 +47,11 @@ async function main() {
   let lines: string[] = [];
 
   console.log("Start reading file...");
+  let start = performance.now();
   rl.on("line", (line) => {
     lines = lines.concat([line]);
 
     if (lines.length === WORKER_LOAD) {
-      const start = performance.now();
-
       workerPool.runTask(lines, async (err, models) => {
         const end = performance.now();
 
@@ -68,12 +68,14 @@ async function main() {
       });
 
       lines = [];
+      start = performance.now();
     }
   });
 
   rl.on("close", () => {
     console.timeEnd(__filename);
     workerPool.close();
+    db.disconnect();
   });
 }
 
