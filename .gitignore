@@ -4,7 +4,8 @@ node_modules
 # local files
 *.csv*
 tmp
+logs
 
 # build
-build
+dist
 tsconfig.tsbuildinfo

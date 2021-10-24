@@ -1,10 +1,15 @@
 # Sirene Invader
 
+## Prerequisites
+
+- (Yarn)[https://yarnpkg.com/getting-started]: `npm i -g yarn`
+- (PM2)[https://pm2.keymetrics.io/docs/usage/quick-start/]: `npm i -g pm2`
+
 ## Getting started
 
 ```shell
 yarn
-yarn pm2 # you can use `yarn start` as well
+pm2 start process.js # you can use `yarn start:node` as well
 ```
 
 ## Features

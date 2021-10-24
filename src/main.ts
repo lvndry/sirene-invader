@@ -18,7 +18,9 @@ async function main() {
   const rl = createInterface({ input: inputStream });
 
   emitKeypressEvents(process.stdin);
-  process.stdin.setRawMode(true);
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+  }
 
   process.stdin.on("keypress", (str, key) => {
     if (key.ctrl) {
@@ -61,7 +63,9 @@ async function main() {
 
         if (err) {
           console.error(err);
-        } else {
+        }
+
+        if (models) {
           const docs = await StockModel.insertMany(models);
           console.log(`Inserted ${docs.length} documents`);
         }
