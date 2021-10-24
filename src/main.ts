@@ -29,6 +29,7 @@ rl.on("line", (line) => {
 
   if (lines.length === WORKER_LOAD) {
     const start = performance.now();
+
     workerPool.runTask(lines, (err, result) => {
       const end = performance.now();
 
@@ -38,12 +39,12 @@ rl.on("line", (line) => {
 
       if (err) {
         console.error(err);
+      } else {
+        console.log(result);
       }
     });
 
     lines = [];
-
-    rl.close();
   }
 });
 

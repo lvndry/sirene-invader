@@ -1,13 +1,10 @@
-import { model, Schema, connect, connection } from "mongoose";
 import { parentPort } from "worker_threads";
 import { initDBConnection } from "./db";
 
-import { IStock } from "./stock.interface";
+import { IStock, StockModel } from "./stock.interface";
 
 parentPort?.on("message", async (lines: string[]) => {
-  // await initDBConnection();
-
-  const db = connection;
+  const conn = await initDBConnection();
 
   const models: IStock[] = lines.map((line) => {
     const data = line.split(",");
@@ -63,17 +60,9 @@ parentPort?.on("message", async (lines: string[]) => {
     };
   });
 
-  try {
-    // await StockModel.insertMany(models, { lean: true });
-    // await StockModel.bulkSave(models.map((model) => new StockModel(model)));
-    // await new StockModel(models[0]).save();
-    // await StockModel.create(models[0]);
-    console.log("try/catch");
-  } catch (err) {
-    console.error(err);
-  }
+  const docs = await StockModel.insertMany(models, { lean: true });
 
-  db.close();
+  await conn.disconnect();
 
-  parentPort?.postMessage("done");
+  parentPort?.postMessage(`Inserted ${docs.length} documents`);
 });
