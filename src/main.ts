@@ -8,9 +8,8 @@ import { performance } from "perf_hooks";
 import { initDBConnection } from "./db";
 import { StockModel } from "./stock.interface";
 
-console.time(__filename);
-
 async function main() {
+  console.time(__filename);
   const filePath = path.join(__dirname, "../stock.csv");
   const workerPath = path.join(__dirname, "./worker.js");
 
@@ -46,6 +45,7 @@ async function main() {
   const WORKER_LOAD = 1000;
   let lines: string[] = [];
 
+  console.log("Start reading file...");
   rl.on("line", (line) => {
     lines = lines.concat([line]);
 

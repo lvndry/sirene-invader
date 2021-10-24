@@ -31,6 +31,7 @@ export class WorkerPool extends EventEmitter {
   public freeWorkers: Worker[];
 
   constructor(threads: number, workerConfig: IWorkerConfig) {
+    console.log("Creating workerpool...");
     super();
     this.threads = threads;
     this.workerConfig = workerConfig;
@@ -38,8 +39,10 @@ export class WorkerPool extends EventEmitter {
     this.freeWorkers = [];
 
     for (let i = 0; i < threads; i++) {
+      console.log(`Creating worker ${i}`);
       this.createWorker();
     }
+    console.log("Init workerpool: Ok");
   }
 
   public get areAllTasksDone() {
