@@ -92,8 +92,18 @@ export class WorkerPool extends EventEmitter {
   }
 
   close() {
-    for (const worker of this.workers) {
-      worker.terminate();
+    this.on(freeWorkerEvent, () => {
+      if (this.areAllTasksDone) {
+        for (const worker of this.workers) {
+          worker.terminate();
+        }
+      }
+    });
+
+    if (this.areAllTasksDone) {
+      for (const worker of this.workers) {
+        worker.terminate();
+      }
     }
   }
 }

@@ -5,6 +5,8 @@ import os from "os";
 
 import { WorkerPool } from "./worker_pool";
 import { performance } from "perf_hooks";
+import { initDBConnection } from "./db";
+import { StockModel } from "./stock.interface";
 
 console.time(__filename);
 
@@ -16,13 +18,21 @@ const inputStream = createReadStream(filePath, { start: 1305 });
 const rl = createInterface({ input: inputStream });
 
 let lines: string[] = [];
+let db: typeof import("mongoose");
+
+initDBConnection().then((database) => {
+  db = database;
+  StockModel.deleteMany({}).then(() =>
+    console.log("Delete stocks from database")
+  );
+});
 
 const workerPool = new WorkerPool(os.cpus().length, {
   path: workerPath,
   options: { workerData: { path: "./worker.ts" } },
 });
 
-const WORKER_LOAD = 500;
+const WORKER_LOAD = 1000;
 
 rl.on("line", (line) => {
   lines = lines.concat([line]);
@@ -30,7 +40,7 @@ rl.on("line", (line) => {
   if (lines.length === WORKER_LOAD) {
     const start = performance.now();
 
-    workerPool.runTask(lines, (err, result) => {
+    workerPool.runTask(lines, async (err, models) => {
       const end = performance.now();
 
       console.log(
@@ -40,7 +50,8 @@ rl.on("line", (line) => {
       if (err) {
         console.error(err);
       } else {
-        console.log(result);
+        const docs = await StockModel.insertMany(models);
+        console.log(`Inserted ${docs.length} documents`);
       }
     });
 
@@ -50,5 +61,5 @@ rl.on("line", (line) => {
 
 rl.on("close", () => {
   console.timeEnd(__filename);
-  // workerPool.close();
+  workerPool.close();
 });

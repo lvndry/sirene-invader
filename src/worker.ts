@@ -1,11 +1,8 @@
 import { parentPort } from "worker_threads";
-import { initDBConnection } from "./db";
 
-import { IStock, StockModel } from "./stock.interface";
+import { IStock } from "./stock.interface";
 
 parentPort?.on("message", async (lines: string[]) => {
-  const conn = await initDBConnection();
-
   const models: IStock[] = lines.map((line) => {
     const data = line.split(",");
     return {
@@ -60,9 +57,5 @@ parentPort?.on("message", async (lines: string[]) => {
     };
   });
 
-  const docs = await StockModel.insertMany(models, { lean: true });
-
-  await conn.disconnect();
-
-  parentPort?.postMessage(`Inserted ${docs.length} documents`);
+  parentPort?.postMessage(models);
 });
