@@ -2,8 +2,6 @@ import { AsyncResource } from "async_hooks";
 import { EventEmitter } from "events";
 import { Worker, WorkerOptions } from "worker_threads";
 
-import { IStock } from "./stock.interface";
-
 const taskInfo = Symbol("kTaskInfo");
 const freeWorkerEvent = Symbol("kFreeWorkerEvent");
 
@@ -84,7 +82,7 @@ export class WorkerPool extends EventEmitter {
 
   runTask(
     task: string[],
-    callback: (err: Error | null, result: IStock[] | null) => void
+    callback: (err: Error | null, result: any | null) => void
   ) {
     // if there's no free workers right now
     if (this.freeWorkers.length === 0) {

@@ -1,6 +1,6 @@
 import { parentPort } from "worker_threads";
 
-import { IStock } from "./stock.interface";
+import { IStock, StockModel } from "./stock.interface";
 
 parentPort?.on("message", async (lines: string[]) => {
   const models: IStock[] = lines.map((line) => {
