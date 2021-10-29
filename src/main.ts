@@ -17,7 +17,11 @@ async function main() {
   const workerPath = path.join(__dirname, "./worker.js");
 
   // Create stream reader, skip the 1305 first bytes to ignore the first line
-  const inputStream = createReadStream(filePath, { start: 1305 });
+  const inputStream = createReadStream(filePath, {
+    start: 1305,
+    encoding: "utf-8",
+  });
+
   const rl = createInterface({
     input: inputStream,
     crlfDelay: Infinity,
@@ -52,8 +56,8 @@ async function main() {
     options: { workerData: { path: "./worker.ts" } },
   });
 
-  const WORKER_LOAD = 500;
-  const PROMISES_FLUSH_LIMIT = 1000;
+  const WORKER_LOAD = 1000;
+  const PROMISES_FLUSH_LIMIT = 500;
 
   let lines: string[] = [];
   let total_inserted = 0;
@@ -65,12 +69,15 @@ async function main() {
     lines = lines.concat([line]);
 
     if (lines.length === WORKER_LOAD) {
-      workerPool.runTask(lines, async (err, models) => {
+      const data = [...lines];
+      lines = [];
+
+      workerPool.runTask(data, async (err, models) => {
         const end = performance.now();
 
-        // console.log(
-        //   `workerPool task took ${Math.trunc(end - start) / 1000} seconds`
-        // );
+        console.log(
+          `workerPool task took ${Math.trunc(end - start) / 1000} seconds`
+        );
 
         if (models) {
           promises = promises.concat([
@@ -79,7 +86,6 @@ async function main() {
           total_inserted += models.length;
           console.log(`processed ${total_inserted} documents`);
 
-          lines = [];
           start = performance.now();
         }
 
@@ -91,14 +97,20 @@ async function main() {
     }
 
     if (promises.length === PROMISES_FLUSH_LIMIT) {
-      await Promise.all(promises);
+      const start = new Date().getTime();
+      const clone = [...promises];
       promises = [];
+      await Promise.all(clone);
+      const end = new Date().getTime();
+      console.log(`Promise all took ${(end - start) / 1000} seconds`);
     }
   });
 
   rl.on("close", async () => {
-    await Promise.all(promises);
-    console.log(`Program inserted ${total_inserted} from stock.csv`);
+    if (promises.length > 0) {
+      await Promise.all(promises);
+      console.log(`Program inserted ${total_inserted} from stock.csv`);
+    }
     console.timeEnd(__filename);
     workerPool.close();
   });
