@@ -120,7 +120,7 @@ export class WorkerPool extends EventEmitter {
     this.emit(newtaskEvent);
   }
 
-  close() {
+  async close() {
     this.on(freeWorkerEvent, () => {
       if (this.areAllTasksDone) {
         for (const worker of this.workers) {

@@ -111,12 +111,13 @@ async function main() {
   });
 
   rl.on("close", async () => {
+    await workerPool.close();
     if (promises.length > 0) {
       await Promise.all(promises);
       console.log(`Program inserted ${total_inserted} from stock.csv`);
     }
     console.timeEnd(__filename);
-    workerPool.close();
+    process.exit();
   });
 
   process.on("exit", shutdownConnection);
