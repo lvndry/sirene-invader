@@ -5,7 +5,8 @@
   "scripts": {
     "build": "rimraf dist && tsc -p tsconfig.json",
     "dev": "NODE_ENV=development tsnd --inspect --respawn src/main.ts --watch src/**",
-    "start": "yarn build && node ./dist/main.js"
+    "start": "yarn build && node ./dist/main.js",
+    "start:debug": "yarn build && node --inspect --trace-warnings ./dist/main.js"
   },
   "repository": {
     "type": "git",

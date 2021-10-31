@@ -9,12 +9,12 @@ import { initDBConnection, shutdownConnection } from "./db";
 import { StockModel } from "./stock.interface";
 import { InsertManyResult } from "mongoose";
 
-let promises: Promise<InsertManyResult>[] = [];
-
 async function main() {
   console.time(__filename);
   const filePath = path.join(__dirname, "../stock.csv");
   const workerPath = path.join(__dirname, "./worker.js");
+
+  const db = await initDBConnection();
 
   // Create stream reader, skip the 1305 first bytes to ignore the first line
   const inputStream = createReadStream(filePath, {
@@ -49,59 +49,63 @@ async function main() {
     });
   }
 
-  const db = await initDBConnection();
-
-  const workerPool = new WorkerPool(os.cpus().length, {
-    path: workerPath,
-    options: { workerData: { path: "./worker.ts" } },
-  });
-
-  const WORKER_LOAD = 1000;
+  const TASK_LOAD = 1000;
   const PROMISES_FLUSH_LIMIT = 500;
 
+  let promises: Promise<InsertManyResult>[] = [];
   let lines: string[] = [];
   let total_inserted = 0;
 
+  const workerPool = new WorkerPool(
+    os.cpus().length,
+    {
+      path: workerPath,
+      options: { workerData: { path: "./worker.ts" } },
+    },
+    async (err, models) => {
+      if (models) {
+        promises = promises.concat([StockModel.collection.insertMany(models)]);
+
+        const workerPoolEnd = performance.now();
+
+        console.log(
+          `workerPool task took ${
+            Math.trunc(workerPoolEnd - workerPoolStart) / 1000
+          } seconds`
+        );
+
+        total_inserted += models.length;
+
+        workerPoolStart = performance.now();
+      }
+
+      if (err) {
+        console.error(err);
+        process.exit();
+      }
+    }
+  );
+
   console.log("Start reading file...");
-  let start = performance.now();
+  let workerPoolStart = performance.now();
 
   rl.on("line", async (line) => {
     lines = lines.concat([line]);
 
-    if (lines.length === WORKER_LOAD) {
-      const data = [...lines];
+    if (lines.length === TASK_LOAD) {
+      const taskData = [...lines];
       lines = [];
 
-      workerPool.runTask(data, async (err, models) => {
-        const end = performance.now();
-
-        console.log(
-          `workerPool task took ${Math.trunc(end - start) / 1000} seconds`
-        );
-
-        if (models) {
-          promises = promises.concat([
-            StockModel.collection.insertMany(models),
-          ]);
-          total_inserted += models.length;
-          console.log(`processed ${total_inserted} documents`);
-
-          start = performance.now();
-        }
-
-        if (err) {
-          console.error(err);
-          process.exit();
-        }
-      });
+      workerPool.runTask(taskData);
     }
 
     if (promises.length === PROMISES_FLUSH_LIMIT) {
-      const start = new Date().getTime();
-      const clone = [...promises];
+      const start = performance.now();
+      const allPromises = [...promises];
       promises = [];
-      await Promise.all(clone);
-      const end = new Date().getTime();
+      await Promise.all(allPromises);
+      const end = performance.now();
+      console.log(`Inserted ${total_inserted} in total`);
       console.log(`Promise all took ${(end - start) / 1000} seconds`);
     }
   });

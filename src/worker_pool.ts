@@ -4,12 +4,13 @@ import { Worker, WorkerOptions } from "worker_threads";
 
 const taskInfo = Symbol("kTaskInfo");
 const freeWorkerEvent = Symbol("kFreeWorkerEvent");
+const newtaskEvent = Symbol("kNewTaskEvent");
 
-export class WorkerPoolTaskInfo extends AsyncResource {
+export class WorkerPoolTaskManager extends AsyncResource {
   public callback: (...args: any[]) => void;
 
   constructor(callback: (...args: any[]) => void) {
-    super("WorkerPoolTaskInfo");
+    super("WorkerPoolTaskManager");
     this.callback = callback;
   }
 
@@ -29,20 +30,54 @@ export class WorkerPool extends EventEmitter {
   public workerConfig: IWorkerConfig;
   public workers: Worker[];
   public freeWorkers: Worker[];
+  public tasksQueue: any[];
 
-  constructor(threads: number, workerConfig: IWorkerConfig) {
+  constructor(
+    threads: number,
+    workerConfig: IWorkerConfig,
+    taskCallback: (err: any, result: any) => void
+  ) {
     console.log("Creating workerpool...");
     super();
     this.threads = threads;
     this.workerConfig = workerConfig;
     this.workers = [];
     this.freeWorkers = [];
+    this.tasksQueue = [];
 
     for (let i = 0; i < threads; i++) {
       console.log(`Creating worker ${i}`);
       this.createWorker();
     }
-    console.log("Init workerpool: Ok");
+
+    this.on(newtaskEvent, () => {
+      // If there's a freeworker available and no other tasks waiting to be taken care of
+      if (
+        this.freeWorkers.length &&
+        this.tasksQueue.length < this.freeWorkers.length
+      ) {
+        const worker = this.freeWorkers.shift();
+        const task = this.tasksQueue.shift();
+        if (worker) {
+          worker[taskInfo] = new WorkerPoolTaskManager(taskCallback);
+          worker.postMessage(task);
+        }
+      }
+    });
+
+    this.on(freeWorkerEvent, () => {
+      if (this.tasksQueue.length && this.freeWorkers.length) {
+        const worker = this.freeWorkers.shift();
+        const task = this.tasksQueue.shift();
+
+        if (worker) {
+          worker[taskInfo] = new WorkerPoolTaskManager(taskCallback);
+          worker.postMessage(task);
+        }
+      }
+    });
+
+    console.log("Workerpool created!");
   }
 
   public get areAllTasksDone() {
@@ -80,21 +115,9 @@ export class WorkerPool extends EventEmitter {
     this.emit(freeWorkerEvent);
   }
 
-  runTask(
-    task: string[],
-    callback: (err: Error | null, result: any | null) => void
-  ) {
-    // if there's no free workers right now
-    if (this.freeWorkers.length === 0) {
-      this.once(freeWorkerEvent, () => this.runTask(task, callback));
-      return;
-    }
-
-    const worker = this.freeWorkers.pop();
-    if (worker) {
-      worker[taskInfo] = new WorkerPoolTaskInfo(callback);
-      worker.postMessage(task);
-    }
+  runTask(task: string[]) {
+    this.tasksQueue = this.tasksQueue.concat([task]);
+    this.emit(newtaskEvent);
   }
 
   close() {
