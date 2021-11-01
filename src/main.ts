@@ -110,6 +110,7 @@ async function main() {
   });
 
   rl.on("close", async () => {
+    workerPool.runTask(lines);
     await Promise.all(promises);
     await workerPool.close();
     console.log(`Inserted ${total_inserted} documents in total`);
