@@ -48,7 +48,7 @@ async function main() {
     });
   }
 
-  const TASK_LOAD = 500;
+  const TASK_LOAD = 1000;
   const PROMISES_FLUSH_LIMIT = 500;
 
   let promises: Promise<InsertManyResult>[] = [];
