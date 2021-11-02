@@ -5,6 +5,7 @@ import { Worker, WorkerOptions } from "worker_threads";
 const taskInfo = Symbol("kTaskInfo");
 const freeWorkerEvent = Symbol("kFreeWorkerEvent");
 const newtaskEvent = Symbol("kNewTaskEvent");
+const closingWorkerPool = Symbol("kClosingWorkerPool");
 
 export class WorkerPoolTaskManager extends AsyncResource {
   public callback: (...args: any[]) => void;
@@ -54,7 +55,7 @@ export class WorkerPool extends EventEmitter {
       // If there's a freeworker available and no other tasks waiting to be taken care of
       if (
         this.freeWorkers.length &&
-        this.tasksQueue.length < this.freeWorkers.length
+        this.tasksQueue.length <= this.freeWorkers.length
       ) {
         const worker = this.freeWorkers.shift();
         const task = this.tasksQueue.shift();
@@ -120,19 +121,36 @@ export class WorkerPool extends EventEmitter {
     this.emit(newtaskEvent);
   }
 
-  close() {
-    this.on(freeWorkerEvent, () => {
+  async close() {
+    return new Promise((resolve, reject) => {
+      this.on(freeWorkerEvent, () => {
+        console.log(
+          "Received last freeworkerEvent. Ready to close workerpool..."
+        );
+        if (this.areAllTasksDone) {
+          for (const worker of this.workers) {
+            worker.terminate();
+          }
+
+          console.log("All workers are terminated.");
+
+          this.emit(closingWorkerPool);
+        }
+      });
+
       if (this.areAllTasksDone) {
         for (const worker of this.workers) {
           worker.terminate();
         }
-      }
-    });
 
-    if (this.areAllTasksDone) {
-      for (const worker of this.workers) {
-        worker.terminate();
+        console.log("All workers are terminated. Ready to close workerpool...");
+        this.emit(closingWorkerPool);
       }
-    }
+
+      this.once(closingWorkerPool, () => {
+        console.log("Workerpool closed");
+        resolve(0);
+      });
+    });
   }
 }

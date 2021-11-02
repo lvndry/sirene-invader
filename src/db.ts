@@ -19,8 +19,8 @@ export const initDBConnection = async () => {
   return db;
 };
 
-export const shutdownConnection = async () => {
+export const shutdownConnection = async (db: any) => {
   console.log("Closing connection...");
-  await connection.close();
+  await db.connection.close();
   console.log("Connection closed");
 };

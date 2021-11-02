@@ -3,11 +3,11 @@ import { createReadStream } from "fs";
 import { createInterface, emitKeypressEvents } from "readline";
 import os from "os";
 import { performance } from "perf_hooks";
+import { InsertManyResult } from "mongoose";
 
 import { WorkerPool } from "./worker_pool";
 import { initDBConnection, shutdownConnection } from "./db";
 import { StockModel } from "./stock.interface";
-import { InsertManyResult } from "mongoose";
 
 async function main() {
   console.time(__filename);
@@ -43,7 +43,6 @@ async function main() {
         } else if (key.name === "c") {
           console.log("Exiting program...");
           rl.close();
-          process.exit();
         }
       }
     });
@@ -55,6 +54,8 @@ async function main() {
   let promises: Promise<InsertManyResult>[] = [];
   let lines: string[] = [];
   let total_inserted = 0;
+
+  let workerPoolStart = performance.now();
 
   const workerPool = new WorkerPool(
     os.cpus().length,
@@ -81,23 +82,14 @@ async function main() {
 
       if (err) {
         console.error(err);
-        process.exit();
+        rl.close();
       }
     }
   );
 
   console.log("Start reading file...");
-  let workerPoolStart = performance.now();
-
   rl.on("line", async (line) => {
     lines = lines.concat([line]);
-
-    if (lines.length === TASK_LOAD) {
-      const taskData = [...lines];
-      lines = [];
-
-      workerPool.runTask(taskData);
-    }
 
     if (promises.length === PROMISES_FLUSH_LIMIT) {
       const start = performance.now();
@@ -105,21 +97,30 @@ async function main() {
       promises = [];
       await Promise.all(allPromises);
       const end = performance.now();
-      console.log(`Inserted ${total_inserted} in total`);
       console.log(`Promise all took ${(end - start) / 1000} seconds`);
+      console.log(`Inserted ${total_inserted} in total`);
+    }
+
+    if (lines.length === TASK_LOAD) {
+      const taskData = [...lines];
+      lines = [];
+
+      workerPool.runTask(taskData);
     }
   });
 
   rl.on("close", async () => {
-    if (promises.length > 0) {
-      await Promise.all(promises);
-      console.log(`Program inserted ${total_inserted} from stock.csv`);
-    }
+    workerPool.runTask(lines);
+    await workerPool.close();
+    await Promise.all(promises);
+    console.log(`Inserted ${total_inserted} documents in total`);
     console.timeEnd(__filename);
-    workerPool.close();
+    process.exit();
   });
 
-  process.on("exit", shutdownConnection);
+  process.on("exit", async () => {
+    await shutdownConnection(db);
+  });
 }
 
 main();
