@@ -5,6 +5,7 @@ node_modules
 *.csv*
 tmp
 logs
+*.zip
 
 # build
 dist
