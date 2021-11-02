@@ -1,7 +1,7 @@
 module.exports = {
   name: "siren-invader",
   script: "yarn",
-  args: "start:node",
+  args: "start",
   env: {
     production: true,
   },

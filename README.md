@@ -8,12 +8,14 @@
 ## Getting started
 
 ```shell
+cd sirene-invader
 yarn
-pm2 start process.js # you can run `yarn start:node` as well
+pm2 start ecosystem.config.js # you can run `yarn start` as well
 ```
 
 ## Features
 
-- Thread pool to CPU heavy work
+- Thread pool to do CPU heavy work
+- Efficient use of Event Emitter
 - Use Readable Streams to read large file
 - Efficient storage in bulk in MongoDB
