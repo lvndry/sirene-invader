@@ -118,7 +118,9 @@ async function main() {
     process.exit();
   });
 
-  process.on("exit", async () => await shutdownConnection(db));
+  process.on("exit", async () => {
+    await shutdownConnection(db);
+  });
 }
 
 main();

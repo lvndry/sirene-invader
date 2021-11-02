@@ -55,7 +55,7 @@ export class WorkerPool extends EventEmitter {
       // If there's a freeworker available and no other tasks waiting to be taken care of
       if (
         this.freeWorkers.length &&
-        this.tasksQueue.length < this.freeWorkers.length
+        this.tasksQueue.length <= this.freeWorkers.length
       ) {
         const worker = this.freeWorkers.shift();
         const task = this.tasksQueue.shift();
@@ -124,14 +124,16 @@ export class WorkerPool extends EventEmitter {
   async close() {
     return new Promise((resolve, reject) => {
       this.on(freeWorkerEvent, () => {
+        console.log(
+          "Received last freeworkerEvent. Ready to close workerpool..."
+        );
         if (this.areAllTasksDone) {
           for (const worker of this.workers) {
             worker.terminate();
           }
 
-          console.log(
-            "All workers are terminated. Ready to close workerpool..."
-          );
+          console.log("All workers are terminated.");
+
           this.emit(closingWorkerPool);
         }
       });
@@ -146,7 +148,7 @@ export class WorkerPool extends EventEmitter {
       }
 
       this.once(closingWorkerPool, () => {
-        console.log("Resolving promise");
+        console.log("Workerpool closed");
         resolve(0);
       });
     });
