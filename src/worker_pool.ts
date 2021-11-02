@@ -5,6 +5,7 @@ import { Worker, WorkerOptions } from "worker_threads";
 const taskInfo = Symbol("kTaskInfo");
 const freeWorkerEvent = Symbol("kFreeWorkerEvent");
 const newtaskEvent = Symbol("kNewTaskEvent");
+const closingWorkerPool = Symbol("kClosingWorkerPool");
 
 export class WorkerPoolTaskManager extends AsyncResource {
   public callback: (...args: any[]) => void;
@@ -121,18 +122,33 @@ export class WorkerPool extends EventEmitter {
   }
 
   async close() {
-    this.on(freeWorkerEvent, () => {
+    return new Promise((resolve, reject) => {
+      this.on(freeWorkerEvent, () => {
+        if (this.areAllTasksDone) {
+          for (const worker of this.workers) {
+            worker.terminate();
+          }
+
+          console.log(
+            "All workers are terminated. Ready to close workerpool..."
+          );
+          this.emit(closingWorkerPool);
+        }
+      });
+
       if (this.areAllTasksDone) {
         for (const worker of this.workers) {
           worker.terminate();
         }
-      }
-    });
 
-    if (this.areAllTasksDone) {
-      for (const worker of this.workers) {
-        worker.terminate();
+        console.log("All workers are terminated. Ready to close workerpool...");
+        this.emit(closingWorkerPool);
       }
-    }
+
+      this.once(closingWorkerPool, () => {
+        console.log("Resolving promise");
+        resolve(0);
+      });
+    });
   }
 }
