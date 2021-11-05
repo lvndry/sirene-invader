@@ -2,14 +2,14 @@
 
 ## Prerequisites
 
-- [Yarn](https://yarnpkg.com/getting-started): `npm i -g yarn`
 - [PM2](https://pm2.keymetrics.io/docs/usage/quick-start/): `npm i -g pm2`
+- [MongoDB](https://docs.mongodb.com/manual/installation/)
 
 ## Getting started
 
 ```shell
-yarn
-pm2 start process.js # you can run `yarn start:node` as well
+yarn # or npm install
+pm2 start ecosystem.config.js # you can run `yarn start:node` as well
 ```
 
 ## Features

@@ -5,9 +5,9 @@ import os from "os";
 import { performance } from "perf_hooks";
 import { InsertManyResult } from "mongoose";
 
-import { WorkerPool } from "./worker_pool";
 import { initDBConnection, shutdownConnection } from "./db";
 import { StockModel } from "./stock.interface";
+import { WorkerPool } from "./worker_pool";
 
 async function main() {
   console.time(__filename);
@@ -49,7 +49,7 @@ async function main() {
   }
 
   const TASK_LOAD = 1000;
-  const PROMISES_FLUSH_LIMIT = 500;
+  const PROMISES_FLUSH_LIMIT = 100;
 
   let promises: Promise<InsertManyResult>[] = [];
   let lines: string[] = [];
@@ -65,15 +65,15 @@ async function main() {
     },
     async (err, models) => {
       if (models) {
-        promises = promises.concat([StockModel.collection.insertMany(models)]);
+        promises.push(StockModel.collection.insertMany(models));
 
         const workerPoolEnd = performance.now();
 
-        console.log(
-          `workerPool task took ${
-            Math.trunc(workerPoolEnd - workerPoolStart) / 1000
-          } seconds`
-        );
+        // console.log(
+        //   `workerPool task took ${
+        //     Math.trunc(workerPoolEnd - workerPoolStart) / 1000
+        //   } seconds`
+        // );
 
         total_inserted += models.length;
 
@@ -89,7 +89,7 @@ async function main() {
 
   console.log("Start reading file...");
   rl.on("line", async (line) => {
-    lines = lines.concat([line]);
+    lines.push(line);
 
     if (promises.length === PROMISES_FLUSH_LIMIT) {
       const start = performance.now();
