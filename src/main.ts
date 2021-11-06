@@ -49,7 +49,6 @@ async function main() {
   }
 
   const TASK_LOAD = 1000;
-  const PROMISES_FLUSH_LIMIT = 100;
 
   let promises: Promise<InsertManyResult>[] = [];
   let lines: string[] = [];
@@ -65,15 +64,15 @@ async function main() {
     },
     async (err, models) => {
       if (models) {
-        promises.push(StockModel.collection.insertMany(models));
+        await StockModel.collection.insertMany(models);
 
         const workerPoolEnd = performance.now();
 
-        // console.log(
-        //   `workerPool task took ${
-        //     Math.trunc(workerPoolEnd - workerPoolStart) / 1000
-        //   } seconds`
-        // );
+        console.log(
+          `workerPool task took ${
+            Math.trunc(workerPoolEnd - workerPoolStart) / 1000
+          } seconds`
+        );
 
         total_inserted += models.length;
 
@@ -91,16 +90,6 @@ async function main() {
   rl.on("line", async (line) => {
     lines.push(line);
 
-    if (promises.length === PROMISES_FLUSH_LIMIT) {
-      const start = performance.now();
-      const allPromises = [...promises];
-      promises = [];
-      await Promise.all(allPromises);
-      const end = performance.now();
-      console.log(`Promise all took ${(end - start) / 1000} seconds`);
-      console.log(`Inserted ${total_inserted} in total`);
-    }
-
     if (lines.length === TASK_LOAD) {
       const taskData = [...lines];
       lines = [];
@@ -111,8 +100,8 @@ async function main() {
 
   rl.on("close", async () => {
     workerPool.runTask(lines);
+    total_inserted += lines.length;
     await workerPool.close();
-    await Promise.all(promises);
     console.log(`Inserted ${total_inserted} documents in total`);
     console.timeEnd(__filename);
     process.exit();
