@@ -2,21 +2,23 @@ import { AsyncResource } from "async_hooks";
 import { EventEmitter } from "events";
 import { Worker, WorkerOptions } from "worker_threads";
 
+import { IStock } from "./stock.interface";
+
 const taskInfo = Symbol("kTaskInfo");
 const freeWorkerEvent = Symbol("kFreeWorkerEvent");
 const newtaskEvent = Symbol("kNewTaskEvent");
 const closingWorkerPool = Symbol("kClosingWorkerPool");
 
 export class WorkerPoolTaskManager extends AsyncResource {
-  public callback: (...args: any[]) => void;
+  public callback: (err: Error, result: IStock[]) => Promise<void>;
 
-  constructor(callback: (...args: any[]) => void) {
+  constructor(callback: (err: Error, result: IStock[]) => Promise<void>) {
     super("WorkerPoolTaskManager");
     this.callback = callback;
   }
 
-  done(err: any, result: any) {
-    this.runInAsyncScope(this.callback, null, err, result);
+  async done(err: Error, result: IStock[]) {
+    await this.runInAsyncScope(this.callback, null, err, result);
     this.emitDestroy();
   }
 }
@@ -26,21 +28,21 @@ interface IWorkerConfig {
   options?: WorkerOptions;
 }
 
+type Task = string[];
+
 export class WorkerPool extends EventEmitter {
-  public threads: number;
   public workerConfig: IWorkerConfig;
   public workers: Worker[];
   public freeWorkers: Worker[];
-  public tasksQueue: any[];
+  public tasksQueue: Task[];
 
   constructor(
     threads: number,
     workerConfig: IWorkerConfig,
-    taskCallback: (err: any, result: any) => void
+    taskCallback: (err: Error, result: IStock[]) => Promise<void>
   ) {
     console.log("Creating workerpool...");
     super();
-    this.threads = threads;
     this.workerConfig = workerConfig;
     this.workers = [];
     this.freeWorkers = [];
@@ -52,7 +54,7 @@ export class WorkerPool extends EventEmitter {
     }
 
     this.on(newtaskEvent, () => {
-      // If there's a freeworker available and no other tasks waiting to be taken care of
+      // If there's a freeworker available and no other tasks are waiting to be taken care of
       if (
         this.freeWorkers.length &&
         this.tasksQueue.length <= this.freeWorkers.length
@@ -81,7 +83,7 @@ export class WorkerPool extends EventEmitter {
     console.log("Workerpool created!");
   }
 
-  public get areAllTasksDone() {
+  private get areAllTasksDone() {
     return this.freeWorkers.length === this.workers.length;
   }
 
@@ -91,8 +93,8 @@ export class WorkerPool extends EventEmitter {
       this.workerConfig.options
     );
 
-    worker.on("message", (data) => {
-      worker[taskInfo].done(null, data);
+    worker.on("message", async (data) => {
+      await worker[taskInfo].done(null, data);
       worker[taskInfo] = null;
       this.freeWorkers.push(worker);
 
@@ -123,16 +125,19 @@ export class WorkerPool extends EventEmitter {
 
   async close() {
     return new Promise((resolve, reject) => {
+      console.log(
+        "Waiting for all tasks to be completed before closing worker pool..."
+      );
+
       this.on(freeWorkerEvent, () => {
-        console.log(
-          "Received last freeworkerEvent. Ready to close workerpool..."
-        );
         if (this.areAllTasksDone) {
           for (const worker of this.workers) {
             worker.terminate();
           }
 
-          console.log("All workers are terminated.");
+          console.log(
+            "All workers are terminated. Ready to close workerpool..."
+          );
 
           this.emit(closingWorkerPool);
         }
@@ -149,7 +154,7 @@ export class WorkerPool extends EventEmitter {
 
       this.once(closingWorkerPool, () => {
         console.log("Workerpool closed");
-        resolve(0);
+        resolve(null);
       });
     });
   }

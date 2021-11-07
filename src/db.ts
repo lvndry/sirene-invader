@@ -1,10 +1,12 @@
-import mongoose, { connection } from "mongoose";
+import mongoose from "mongoose";
 
 import { StockModel } from "./stock.interface";
 
+let db: typeof mongoose;
+
 export const initDBConnection = async () => {
   console.log("Connecting to database");
-  const db = await mongoose.connect("mongodb://localhost:27017/sirene", {
+  db = await mongoose.connect("mongodb://localhost:27017/sirene", {
     appName: "sirene-app",
     ignoreUndefined: true,
     minPoolSize: 5,
@@ -19,8 +21,8 @@ export const initDBConnection = async () => {
   return db;
 };
 
-export const shutdownConnection = async (db: any) => {
+export const shutdownConnection = async () => {
   console.log("Closing connection...");
-  await db.connection.close();
+  await db.disconnect();
   console.log("Connection closed");
 };

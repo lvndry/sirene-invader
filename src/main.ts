@@ -3,22 +3,19 @@ import { createReadStream } from "fs";
 import { createInterface, emitKeypressEvents } from "readline";
 import os from "os";
 import { performance } from "perf_hooks";
-import { InsertManyResult } from "mongoose";
 
 import { initDBConnection, shutdownConnection } from "./db";
 import { StockModel } from "./stock.interface";
 import { WorkerPool } from "./worker_pool";
 
-async function main() {
+async function main(skipHeader = true) {
   console.time(__filename);
   const filePath = path.join(__dirname, "../stock.csv");
   const workerPath = path.join(__dirname, "./worker.js");
 
-  const db = await initDBConnection();
+  await initDBConnection();
 
-  // Create stream reader, skip the 1305 first bytes to ignore the first line
   const inputStream = createReadStream(filePath, {
-    start: 1305,
     encoding: "utf-8",
   });
 
@@ -50,14 +47,13 @@ async function main() {
 
   const TASK_LOAD = 1000;
 
-  let promises: Promise<InsertManyResult>[] = [];
   let lines: string[] = [];
   let total_inserted = 0;
 
   let workerPoolStart = performance.now();
 
   const workerPool = new WorkerPool(
-    os.cpus().length,
+    os.cpus().length - 1,
     {
       path: workerPath,
       options: { workerData: { path: "./worker.ts" } },
@@ -69,9 +65,7 @@ async function main() {
         const workerPoolEnd = performance.now();
 
         console.log(
-          `workerPool task took ${
-            Math.trunc(workerPoolEnd - workerPoolStart) / 1000
-          } seconds`
+          `workerPool task took ${workerPoolEnd - workerPoolStart} ms`
         );
 
         total_inserted += models.length;
@@ -86,29 +80,31 @@ async function main() {
     }
   );
 
+  let firstLineRead = false;
+
   console.log("Start reading file...");
-  rl.on("line", async (line) => {
-    lines.push(line);
+  rl.on("line", (line) => {
+    if (skipHeader && !firstLineRead) {
+      firstLineRead = true;
+    } else {
+      lines.push(line);
 
-    if (lines.length === TASK_LOAD) {
-      const taskData = [...lines];
-      lines = [];
+      if (lines.length === TASK_LOAD) {
+        const taskData = [...lines];
+        lines = [];
 
-      workerPool.runTask(taskData);
+        workerPool.runTask(taskData);
+      }
     }
   });
 
   rl.on("close", async () => {
     workerPool.runTask(lines);
-    total_inserted += lines.length;
     await workerPool.close();
     console.log(`Inserted ${total_inserted} documents in total`);
     console.timeEnd(__filename);
-    process.exit();
-  });
-
-  process.on("exit", async () => {
-    await shutdownConnection(db);
+    await shutdownConnection();
+    process.exit(0);
   });
 }
 
