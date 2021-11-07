@@ -23,4 +23,4 @@ pm2 start ecosystem.config.js # you can run `yarn start` as well
 
 ## Benchmark
 
-CSV file with 31 957 997 lines: `5:57:193`
+CSV file with 31 957 997 lines: `5:57:193 (m:ss:mmm)`
