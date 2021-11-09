@@ -1,6 +1,7 @@
 import { AsyncResource } from "async_hooks";
 import { EventEmitter } from "events";
 import { Worker, WorkerOptions } from "worker_threads";
+import { performance } from "perf_hooks";
 
 import { IStock } from "./stock.interface";
 
@@ -10,15 +11,21 @@ const newtaskEvent = Symbol("kNewTaskEvent");
 const closingWorkerPool = Symbol("kClosingWorkerPool");
 
 export class WorkerPoolTaskManager extends AsyncResource {
-  public callback: (err: Error, result: IStock[]) => Promise<void>;
+  public callback: (
+    err: Error,
+    result: IStock[],
+    index: number
+  ) => Promise<void>;
 
-  constructor(callback: (err: Error, result: IStock[]) => Promise<void>) {
+  constructor(
+    callback: (err: Error, result: IStock[], index: number) => Promise<void>
+  ) {
     super("WorkerPoolTaskManager");
     this.callback = callback;
   }
 
-  async done(err: Error, result: IStock[]) {
-    await this.runInAsyncScope(this.callback, null, err, result);
+  async done(err: Error, result: IStock[], index: number) {
+    await this.runInAsyncScope(this.callback, null, err, result, index);
     this.emitDestroy();
   }
 }
@@ -28,18 +35,23 @@ interface IWorkerConfig {
   options?: WorkerOptions;
 }
 
+interface PoolWorker {
+  instance: Worker;
+  index: number;
+}
+
 type Task = string[];
 
 export class WorkerPool extends EventEmitter {
   public workerConfig: IWorkerConfig;
-  public workers: Worker[];
-  public freeWorkers: Worker[];
+  public workers: PoolWorker[];
+  public freeWorkers: PoolWorker[];
   public tasksQueue: Task[];
 
   constructor(
     threads: number,
     workerConfig: IWorkerConfig,
-    taskCallback: (err: Error, result: IStock[]) => Promise<void>
+    taskCallback: (err: Error, result: IStock[], index: number) => Promise<void>
   ) {
     console.log("Creating workerpool...");
     super();
@@ -50,7 +62,7 @@ export class WorkerPool extends EventEmitter {
 
     for (let i = 0; i < threads; i++) {
       console.log(`Creating worker ${i}`);
-      this.createWorker();
+      this.createWorker(i);
     }
 
     this.on(newtaskEvent, () => {
@@ -62,8 +74,9 @@ export class WorkerPool extends EventEmitter {
         const worker = this.freeWorkers.shift();
         const task = this.tasksQueue.shift();
         if (worker) {
-          worker[taskInfo] = new WorkerPoolTaskManager(taskCallback);
-          worker.postMessage(task);
+          worker.instance[taskInfo] = new WorkerPoolTaskManager(taskCallback);
+          performance.mark(`worker-${worker.index}-start`);
+          worker.instance.postMessage(task);
         }
       }
     });
@@ -74,8 +87,9 @@ export class WorkerPool extends EventEmitter {
         const task = this.tasksQueue.shift();
 
         if (worker) {
-          worker[taskInfo] = new WorkerPoolTaskManager(taskCallback);
-          worker.postMessage(task);
+          worker.instance[taskInfo] = new WorkerPoolTaskManager(taskCallback);
+          performance.mark(`worker-${worker.index}-start`);
+          worker.instance.postMessage(task);
         }
       }
     });
@@ -87,30 +101,32 @@ export class WorkerPool extends EventEmitter {
     return this.freeWorkers.length === this.workers.length;
   }
 
-  createWorker() {
-    const worker = new Worker(
+  createWorker(index: number) {
+    const instance = new Worker(
       this.workerConfig.path,
       this.workerConfig.options
     );
 
-    worker.on("message", async (data) => {
-      await worker[taskInfo].done(null, data);
-      worker[taskInfo] = null;
+    const worker = { instance, index };
+
+    worker.instance.on("message", async (result) => {
+      await worker.instance[taskInfo].done(null, result, index);
+      worker.instance[taskInfo] = null;
       this.freeWorkers.push(worker);
 
       this.emit(freeWorkerEvent);
     });
 
-    worker.on("error", (err) => {
-      if (worker[taskInfo]) {
-        worker[taskInfo].done(err, null);
+    worker.instance.on("error", (err) => {
+      if (worker.instance[taskInfo]) {
+        worker.instance[taskInfo].done(err, null);
       } else {
         this.emit("error", err);
       }
 
       // delete the worker from the list and then recreate an other one
       this.workers.splice(this.workers.indexOf(worker), 1);
-      this.createWorker();
+      this.createWorker(index);
     });
 
     this.workers.push(worker);
@@ -132,7 +148,7 @@ export class WorkerPool extends EventEmitter {
       this.on(freeWorkerEvent, () => {
         if (this.areAllTasksDone) {
           for (const worker of this.workers) {
-            worker.terminate();
+            worker.instance.terminate();
           }
 
           console.log(
@@ -145,7 +161,7 @@ export class WorkerPool extends EventEmitter {
 
       if (this.areAllTasksDone) {
         for (const worker of this.workers) {
-          worker.terminate();
+          worker.instance.terminate();
         }
 
         console.log("All workers are terminated. Ready to close workerpool...");

@@ -1,11 +1,14 @@
+import { Types } from "mongoose";
 import { parentPort } from "worker_threads";
 
 import { IStock } from "./stock.interface";
 
 parentPort?.on("message", (lines: string[]) => {
-  const models: IStock[] = lines.map((line) => {
+  const models = lines.map((line) => {
     const data = line.split(",");
-    const stock = {
+
+    const stock: IStock & { _id: string } = {
+      _id: new Types.ObjectId().toString(),
       siren: data[0] || undefined,
       nic: data[1] || undefined,
       siret: data[2] || undefined,

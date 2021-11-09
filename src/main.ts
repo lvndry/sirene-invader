@@ -2,11 +2,18 @@ import path from "path";
 import { createReadStream } from "fs";
 import { createInterface, emitKeypressEvents } from "readline";
 import os from "os";
-import { performance } from "perf_hooks";
+import { performance, PerformanceObserver } from "perf_hooks";
 
 import { initDBConnection, shutdownConnection } from "./db";
-import { StockModel } from "./stock.interface";
+import { IStock, StockModel } from "./stock.interface";
 import { WorkerPool } from "./worker_pool";
+
+const observer = new PerformanceObserver((list) => {
+  const entry = list.getEntries()[0];
+  console.log(`Entry ${entry.name}:`, entry.duration);
+});
+
+observer.observe({ entryTypes: ["measure"] });
 
 async function main(skipHeader = true) {
   console.time(__filename);
@@ -25,6 +32,11 @@ async function main(skipHeader = true) {
     terminal: false,
   });
 
+  const TASK_LOAD = 3000;
+
+  let lines: string[] = [];
+  let total_inserted = 0;
+
   if (process.stdin.isTTY) {
     emitKeypressEvents(process.stdin);
     process.stdin.setRawMode(true);
@@ -34,6 +46,7 @@ async function main(skipHeader = true) {
         if (key.name === "p") {
           console.log("Pause...");
           rl.pause();
+          console.log(`Inserted ${total_inserted} documents so far`);
         } else if (key.name === "r") {
           console.log("Resume...");
           rl.resume();
@@ -45,12 +58,29 @@ async function main(skipHeader = true) {
     });
   }
 
-  const TASK_LOAD = 1000;
+  const workerPoolCallback = async (
+    err: Error,
+    models: IStock[],
+    index: number
+  ) => {
+    if (models) {
+      const { insertedCount } = await StockModel.collection.insertMany(models);
 
-  let lines: string[] = [];
-  let total_inserted = 0;
+      performance.mark(`worker-${index}-end`);
+      performance.measure(
+        `Worker ${index}`,
+        `worker-${index}-start`,
+        `worker-${index}-end`
+      );
 
-  let workerPoolStart = performance.now();
+      total_inserted += insertedCount;
+    }
+
+    if (err) {
+      console.error(err);
+      rl.close();
+    }
+  };
 
   const workerPool = new WorkerPool(
     os.cpus().length - 1,
@@ -58,26 +88,7 @@ async function main(skipHeader = true) {
       path: workerPath,
       options: { workerData: { path: "./worker.ts" } },
     },
-    async (err, models) => {
-      if (models) {
-        await StockModel.collection.insertMany(models);
-
-        const workerPoolEnd = performance.now();
-
-        console.log(
-          `workerPool task took ${workerPoolEnd - workerPoolStart} ms`
-        );
-
-        total_inserted += models.length;
-
-        workerPoolStart = performance.now();
-      }
-
-      if (err) {
-        console.error(err);
-        rl.close();
-      }
-    }
+    workerPoolCallback
   );
 
   let firstLineRead = false;
