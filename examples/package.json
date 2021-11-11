@@ -1,0 +1,13 @@
+{
+    "name": "sirene-invader-example",
+    "version": "1.0.0",
+    "description": "Sirene invader example",
+    "scripts": {
+        "start": "NODE_ENV=development tsnd --inspect --respawn basicExample.ts"
+    },
+    "author": "lvndry",
+    "devDependencies": {
+        "ts-node-dev": "^1.1.8",
+        "typescript": "^4.4.4"
+    }
+}
