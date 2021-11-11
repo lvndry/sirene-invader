@@ -1,10 +1,8 @@
-import mongoose from "mongoose";
-
-import { StockModel } from "./stock.interface";
+import mongoose, { model, Schema } from "mongoose";
 
 let db: typeof mongoose;
 
-export const initDBConnection = async () => {
+export const initDBConnection = async (collectionName: string) => {
   console.log("Connecting to database");
   db = await mongoose.connect("mongodb://localhost:27017/sirene", {
     appName: "sirene-app",
@@ -14,11 +12,14 @@ export const initDBConnection = async () => {
   });
   console.log("Connection: Ok");
 
+  const SireneSchema = new Schema<any>();
+  const SireneModel = model(collectionName.toLowerCase(), SireneSchema);
+
   console.log("Deleting old values in database...");
-  await StockModel.deleteMany({});
+  await SireneModel.deleteMany({});
   console.log("Deletion of old values: Ok");
 
-  return db;
+  return SireneModel;
 };
 
 export const shutdownConnection = async () => {

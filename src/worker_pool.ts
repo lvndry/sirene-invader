@@ -3,28 +3,22 @@ import { EventEmitter } from "events";
 import { Worker, WorkerOptions } from "worker_threads";
 import { performance } from "perf_hooks";
 
-import { IStock } from "./stock.interface";
-
 const taskInfo = Symbol("kTaskInfo");
 const freeWorkerEvent = Symbol("kFreeWorkerEvent");
 const newtaskEvent = Symbol("kNewTaskEvent");
 const closingWorkerPool = Symbol("kClosingWorkerPool");
 
 export class WorkerPoolTaskManager extends AsyncResource {
-  public callback: (
-    err: Error,
-    result: IStock[],
-    index: number
-  ) => Promise<void>;
+  public callback: (err: Error, result: any[], index: number) => Promise<void>;
 
   constructor(
-    callback: (err: Error, result: IStock[], index: number) => Promise<void>
+    callback: (err: Error, result: any[], index: number) => Promise<void>
   ) {
     super("WorkerPoolTaskManager");
     this.callback = callback;
   }
 
-  async done(err: Error, result: IStock[], index: number) {
+  async done(err: Error, result: any[], index: number) {
     await this.runInAsyncScope(this.callback, null, err, result, index);
     this.emitDestroy();
   }
@@ -40,7 +34,7 @@ interface PoolWorker {
   index: number;
 }
 
-type Task = string[];
+export type Task = { keys: string[]; values: string[] };
 
 export class WorkerPool extends EventEmitter {
   public workerConfig: IWorkerConfig;
@@ -51,7 +45,7 @@ export class WorkerPool extends EventEmitter {
   constructor(
     threads: number,
     workerConfig: IWorkerConfig,
-    taskCallback: (err: Error, result: IStock[], index: number) => Promise<void>
+    taskCallback: (err: Error, result: any[], index: number) => Promise<void>
   ) {
     console.log("Creating workerpool...");
     super();
@@ -134,7 +128,7 @@ export class WorkerPool extends EventEmitter {
     this.emit(freeWorkerEvent);
   }
 
-  runTask(task: string[]) {
+  runTask(task: Task) {
     this.tasksQueue.push(task);
     this.emit(newtaskEvent);
   }
