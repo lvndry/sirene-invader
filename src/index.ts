@@ -29,7 +29,9 @@ export class Sirene {
     this.filePath = config.filePath;
     this.collectionName = config.collectionName || "sirene";
 
-    this.readStream = this.createReadStream();
+    this.readStream = createReadStream(path.resolve(__dirname, this.filePath), {
+      encoding: "utf-8",
+    });
 
     this.readInterface = createInterface({
       input: this.readStream,
@@ -37,27 +39,16 @@ export class Sirene {
       terminal: false,
     });
 
+    this.readInterface.pause();
+
     this.workerPool = this.initWorkerpool();
-  }
-
-  private createReadStream() {
-    return createReadStream(path.resolve(__dirname, this.filePath), {
-      encoding: "utf-8",
-    });
-  }
-
-  private async buildHeader(header: string) {
-    return new Promise((resolve, reject) => {
-      this.csvHeader = header.split(",");
-      resolve(header);
-    });
   }
 
   private initWorkerpool() {
     const workerPath = path.join(__dirname, "./worker.js");
 
     const workerPoolCallback = async (err: Error, models: any[]) => {
-      if (models) {
+      if (models && models.length) {
         const { insertedCount } =
           await this.mongooseModel!.collection.insertMany(models);
 
@@ -88,20 +79,19 @@ export class Sirene {
 
   async setup() {
     this.mongooseModel = await initDBConnection(this.collectionName);
-    return;
+    return this.mongooseModel;
   }
 
   async run() {
-    let totalInserted = 0;
     console.time("sirene.run");
     const TASK_LOAD = 1000;
     let counter = 0;
     let lines: string[] = [];
-
+    this.readInterface.resume();
     this.readInterface.on("line", async (line) => {
       if (!this.headerRead) {
         this.headerRead = true;
-        await this.buildHeader(line);
+        this.csvHeader = line.split(",");
       } else {
         counter += 1;
         lines.push(line);
@@ -117,6 +107,7 @@ export class Sirene {
 
     this.readInterface.on("close", async () => {
       this.workerPool.runTask({ keys: this.csvHeader, values: lines });
+      this.totalInsertedDocuments += lines.length;
       await this.workerPool.close();
       console.timeEnd("sirene.run");
       console.log(

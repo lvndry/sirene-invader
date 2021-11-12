@@ -26,4 +26,5 @@ export const shutdownConnection = async () => {
   console.log("Closing connection...");
   await db.disconnect();
   console.log("Connection closed");
+  return;
 };
