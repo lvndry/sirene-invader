@@ -1,7 +1,7 @@
 {
-  "name": "sirene-invader",
+  "name": "sirene",
   "version": "1.0.0",
-  "description": "Efficient MongoDB file indexing",
+  "description": "Efficiently store CSV in MongoDB",
   "types": "dist/index.d.ts",
   "files": [
     "dist"
