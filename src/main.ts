@@ -15,7 +15,7 @@ const observer = new PerformanceObserver((list) => {
 
 observer.observe({ entryTypes: ["measure"] });
 
-async function main(skipHeader = true) {
+async function main() {
   console.time(__filename);
   const filePath = path.join(__dirname, "../stock.csv");
   const workerPath = path.join(__dirname, "./worker.js");
@@ -24,6 +24,7 @@ async function main(skipHeader = true) {
 
   const inputStream = createReadStream(filePath, {
     encoding: "utf-8",
+    start: 1305,
   });
 
   const rl = createInterface({
@@ -59,8 +60,8 @@ async function main(skipHeader = true) {
   }
 
   const workerPoolCallback = async (
-    err: Error,
-    models: IStock[],
+    err: Error | null,
+    models: IStock[] | null,
     index: number
   ) => {
     if (models) {
@@ -95,17 +96,13 @@ async function main(skipHeader = true) {
 
   console.log("Start reading file...");
   rl.on("line", (line) => {
-    if (skipHeader && !firstLineRead) {
-      firstLineRead = true;
-    } else {
-      lines.push(line);
+    lines.push(line);
 
-      if (lines.length === TASK_LOAD) {
-        const taskData = [...lines];
-        lines = [];
+    if (lines.length === TASK_LOAD) {
+      const taskData = [...lines];
+      lines = [];
 
-        workerPool.runTask(taskData);
-      }
+      workerPool.runTask(taskData);
     }
   });
 

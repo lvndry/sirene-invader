@@ -1,34 +1,12 @@
-import { AsyncResource } from "async_hooks";
 import { EventEmitter } from "events";
 import { Worker, WorkerOptions } from "worker_threads";
 import { performance } from "perf_hooks";
 
 import { IStock } from "./stock.interface";
 
-const taskInfo = Symbol("kTaskInfo");
 const freeWorkerEvent = Symbol("kFreeWorkerEvent");
 const newtaskEvent = Symbol("kNewTaskEvent");
 const closingWorkerPool = Symbol("kClosingWorkerPool");
-
-export class WorkerPoolTaskManager extends AsyncResource {
-  public callback: (
-    err: Error,
-    result: IStock[],
-    index: number
-  ) => Promise<void>;
-
-  constructor(
-    callback: (err: Error, result: IStock[], index: number) => Promise<void>
-  ) {
-    super("WorkerPoolTaskManager");
-    this.callback = callback;
-  }
-
-  async done(err: Error, result: IStock[], index: number) {
-    await this.runInAsyncScope(this.callback, null, err, result, index);
-    this.emitDestroy();
-  }
-}
 
 interface IWorkerConfig {
   path: string;
@@ -41,17 +19,23 @@ interface PoolWorker {
 }
 
 type Task = string[];
+type TaskCallback = (
+  err: Error | null,
+  result: IStock[] | null,
+  index: number
+) => Promise<void>;
 
 export class WorkerPool extends EventEmitter {
   public workerConfig: IWorkerConfig;
   public workers: PoolWorker[];
   public freeWorkers: PoolWorker[];
   public tasksQueue: Task[];
+  public taskCallback: TaskCallback;
 
   constructor(
     threads: number,
     workerConfig: IWorkerConfig,
-    taskCallback: (err: Error, result: IStock[], index: number) => Promise<void>
+    taskCallback: TaskCallback
   ) {
     console.log("Creating workerpool...");
     super();
@@ -59,6 +43,7 @@ export class WorkerPool extends EventEmitter {
     this.workers = [];
     this.freeWorkers = [];
     this.tasksQueue = [];
+    this.taskCallback = taskCallback;
 
     for (let i = 0; i < threads; i++) {
       console.log(`Creating worker ${i}`);
@@ -74,7 +59,6 @@ export class WorkerPool extends EventEmitter {
         const worker = this.freeWorkers.shift();
         const task = this.tasksQueue.shift();
         if (worker) {
-          worker.instance[taskInfo] = new WorkerPoolTaskManager(taskCallback);
           performance.mark(`worker-${worker.index}-start`);
           worker.instance.postMessage(task);
         }
@@ -87,7 +71,6 @@ export class WorkerPool extends EventEmitter {
         const task = this.tasksQueue.shift();
 
         if (worker) {
-          worker.instance[taskInfo] = new WorkerPoolTaskManager(taskCallback);
           performance.mark(`worker-${worker.index}-start`);
           worker.instance.postMessage(task);
         }
@@ -110,19 +93,13 @@ export class WorkerPool extends EventEmitter {
     const worker = { instance, index };
 
     worker.instance.on("message", async (result) => {
-      await worker.instance[taskInfo].done(null, result, index);
-      worker.instance[taskInfo] = null;
+      await this.taskCallback(null, result, index);
       this.freeWorkers.push(worker);
-
       this.emit(freeWorkerEvent);
     });
 
-    worker.instance.on("error", (err) => {
-      if (worker.instance[taskInfo]) {
-        worker.instance[taskInfo].done(err, null);
-      } else {
-        this.emit("error", err);
-      }
+    worker.instance.on("error", async (err) => {
+      await this.taskCallback(err, null, index);
 
       // delete the worker from the list and then recreate an other one
       this.workers.splice(this.workers.indexOf(worker), 1);
