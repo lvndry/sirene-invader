@@ -92,8 +92,6 @@ async function main() {
     workerPoolCallback
   );
 
-  let firstLineRead = false;
-
   console.log("Start reading file...");
   rl.on("line", (line) => {
     lines.push(line);
