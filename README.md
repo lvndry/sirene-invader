@@ -16,11 +16,16 @@ pm2 start ecosystem.config.js # you can run `yarn start` as well
 
 ## Features
 
-- Thread pool to share work between workers
+- Thread pool + task queue to share work between workers
 - Use Readable Streams
 - Efficient write in bulk in MongoDB
 - mongoose is the only dependency
+- `Ctrl + P` to pause the process and `Ctrl + R` to resume the process
+
+## Architecture
+
+![Sirene Architecture](./docs/sirene_architecture.png)
 
 ## Benchmark
 
-CSV file with 31 957 997 lines: `5:57:193 (m:ss:mmm)`
+CSV file with 31 957 996 lines: `5:43:193 (m:ss:mmm)`
